@@ -1,29 +1,21 @@
 # Active Context
 
 ## Current Status
-- **Phase**: Phase 6 (CI/CD Pipelines, EAS Configuration & E2E Verification) Complete & Verified ([APPROVED])
+- **Phase**: Modal Deployment & Infrastructure Complete & Verified ([APPROVED])
 - **Overall Project Status**: **AI Buddy MVP Architecture 100% Complete & Production-Ready**.
-- **Test Suite Status**: 34 Backend Pytest tests passed (100%), 19 Mobile Jest tests passed (100%), 0 TypeScript compilation errors (`npx tsc --noEmit`).
+- **Test Suite Status**: 35 Backend Pytest tests passed (100%), 19 Mobile Jest tests passed (100%), 0 TypeScript compilation errors (`npx tsc --noEmit`).
 
 ## Recent Changes
-- Created `.github/workflows/ci.yml`:
-  - `backend-ci`: Python 3.11 environment setup, dependency caching, and full `pytest` execution across all modules.
-  - `mobile-ci`: Node.js 20 environment setup, dependency caching, `npx tsc --noEmit` typecheck, and `npm test` Jest execution.
-- Created `mobile/eas.json`:
-  - `development`: Configured for iOS simulator builds and internal developer debugging.
-  - `preview`: Configured for internal TestFlight distribution builds linked to Apple Developer account.
-  - `production`: Configured for App Store release with `autoIncrement` version management.
-- Implemented `tests/test_e2e_flow.py`:
-  - Full end-to-end integration test validating the entire user companion lifecycle:
-    1. Auth Token Request (`POST /api/v1/auth/token`)
-    2. JWT Payload Claims & LiveKit Video Grants Verification
-    3. Room Connection & User ID Extraction
-    4. RAG Long-Term Memory Retrieval & Dynamic Companion Prompt Personalization
-    5. Real-Time Audio Dialogue Turn Tracking in Session Transcript
-    6. 20-Minute Session Circuit Breaker / Usage Cap Enforcement
-    7. Graceful Room Disconnection & Background Memory Persistence to Mem0
-- Updated `backend/app/agent.py` to await coroutine returns from `session.start`.
+- Implemented Modal serverless deployment script at `backend/app/modal_app.py`:
+  - Defined `modal.App("ai-buddy-agent")`.
+  - Built Debian Slim Python 3.11 container with system binaries (`ffmpeg`, `libopus-dev`, `git`) and Python dependencies from `requirements.txt`.
+  - Configured `@app.function` attaching `modal.Secret.from_name("ai-buddy-secrets")` exposing all 8 backend environment variables (`LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `REVENUECAT_SECRET_KEY`, `MEM0_API_KEY`).
+  - Configured `min_containers=1` (guarantees at least 1 warm worker container continuously listening for WebSocket room dispatches) and `timeout=86400` (24-hour execution limit).
+  - Configured continuous worker execution loop invoking `backend.app.agent.run_agent_worker()`.
+- Added unit test `test_modal_app_configuration` in `tests/test_agent.py` to validate app naming and secret key bindings.
+- Verified syntax compilation with `python -m py_compile backend/app/modal_app.py`.
+- Updated `cloud-architecture.md` and `progress.md` with Modal hosting topology.
 
 ## Next Steps / Post-MVP
-- Continuous monitoring of LiveKit and OpenAI Realtime latency in production.
-- App Store binary build submission using `eas build --platform ios --profile production`.
+- Deploy LiveKit worker to Modal via `modal deploy backend/app/modal_app.py`.
+- Submit iOS app bundle via `eas build --platform ios --profile production`.

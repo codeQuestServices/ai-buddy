@@ -211,3 +211,19 @@ async def test_worker_entrypoint_orchestration():
         mock_breaker.start.assert_called_once()
         mock_ctx.add_shutdown_callback.assert_called_once()
         mock_session.start.assert_called_once_with(mock_agent, room=mock_room)
+
+
+def test_modal_app_configuration():
+    """Verify Modal deployment app name, required secrets, and configuration."""
+    from backend.app.modal_app import app, REQUIRED_SECRET_KEYS
+
+    assert app.name == "ai-buddy-agent"
+    assert len(REQUIRED_SECRET_KEYS) == 8
+    assert "LIVEKIT_URL" in REQUIRED_SECRET_KEYS
+    assert "LIVEKIT_API_KEY" in REQUIRED_SECRET_KEYS
+    assert "LIVEKIT_API_SECRET" in REQUIRED_SECRET_KEYS
+    assert "OPENAI_API_KEY" in REQUIRED_SECRET_KEYS
+    assert "SUPABASE_URL" in REQUIRED_SECRET_KEYS
+    assert "SUPABASE_SERVICE_ROLE_KEY" in REQUIRED_SECRET_KEYS
+    assert "REVENUECAT_SECRET_KEY" in REQUIRED_SECRET_KEYS
+    assert "MEM0_API_KEY" in REQUIRED_SECRET_KEYS

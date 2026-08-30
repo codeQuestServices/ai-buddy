@@ -4,23 +4,28 @@
 1. **LiveKit Cloud / Server**:
    - WebRTC media routing, selective forwarding, and room state management.
    - LiveKit Agent Worker connects to LiveKit to handle agent audio/video tracks and Oculus viseme metadata data channels.
-2. **OpenAI Realtime API**:
+2. **Modal Cloud (Serverless Python Worker Deployment)**:
+   - App Name: `ai-buddy-agent` ([backend/app/modal_app.py](file:///Users/pcm/workspace/ai-buddy/backend/app/modal_app.py)).
+   - Image: `modal.Image.debian_slim(python_version="3.11")` with system dependencies (`ffmpeg`, `libopus-dev`, `git`) and Python dependencies from `requirements.txt`.
+   - Secret Binding: `modal.Secret.from_name("ai-buddy-secrets")` exposing all 8 backend environment variables.
+   - Availability & Timeout: `min_containers=1` (guarantees at least 1 warm worker container continuously listening for WebSocket dispatches) and `timeout=86400` (24h execution limit).
+3. **OpenAI Realtime API**:
    - High-performance, low-latency multimodal dialogue generation with Silero VAD.
-3. **Supabase (PostgreSQL + pgvector)**:
+4. **Supabase (PostgreSQL + pgvector)**:
    - User authentication and persistent storage.
    - Vector embeddings storage for long-term memory retrieval via Mem0.
-4. **Mem0 Platform / SDK**:
+5. **Mem0 Platform / SDK**:
    - Manages user personalized episodic memory extraction and dynamic context injection.
-5. **RevenueCat**:
+6. **RevenueCat**:
    - In-app purchase verification, entitlement resolution, and subscription management (`react-native-purchases`).
-6. **Expo Application Services (EAS)**:
+7. **Expo Application Services (EAS)**:
    - Automated cloud builds for iOS Simulator (development), internal TestFlight distribution (preview), and App Store submission (production) via `mobile/eas.json`.
-7. **GitHub Actions CI/CD**:
+8. **GitHub Actions CI/CD**:
    - Automated CI testing on push/PR: Python 3.11 backend pytest suite and Node 20 mobile TypeScript typecheck & Jest tests (`.github/workflows/ci.yml`).
 
 ## Environment Variable Schemas (Strictly no secrets stored in repository)
 
-### Backend (`/backend/.env`)
+### Backend (`/backend/.env` & Modal Secret `ai-buddy-secrets`)
 | Variable | Description |
 |---|---|
 | `LIVEKIT_URL` | WebSocket URL for LiveKit server instance (e.g. `wss://your-project.livekit.cloud`) |
@@ -29,6 +34,7 @@
 | `OPENAI_API_KEY` | OpenAI API Key for Realtime API |
 | `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase Service Role Secret Key (Backend worker only) |
+| `REVENUECAT_SECRET_KEY` | RevenueCat Server Secret Key |
 | `MEM0_API_KEY` | Mem0 API Key |
 | `TOKEN_TTL_MINUTES` | LiveKit access token lifetime (default: 15) |
 

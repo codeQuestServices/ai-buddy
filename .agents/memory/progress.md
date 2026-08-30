@@ -19,7 +19,7 @@
   - [x] OpenAI Realtime Model + Silero VAD + Native Interruption Handling
   - [x] Audio stream lifecycle event hooks (`user_started_speaking`, `user_stopped_speaking`, etc.)
   - [x] 20-minute session circuit breaker (`SessionCircuitBreaker`)
-  - [x] Automated test suite (`tests/test_agent.py` -> 10 passed)
+  - [x] Automated test suite (`tests/test_agent.py` -> 11 passed)
 - [x] Phase 3: RAG & Persistent Memory Pipeline
   - [x] Mem0 vector memory service (`backend/app/services/memory.py`)
   - [x] Dynamic persistent context retrieval & prompt injection (`get_user_context`)
@@ -42,11 +42,15 @@
   - [x] GitHub Actions CI workflow (`.github/workflows/ci.yml`) with Python and Node jobs
   - [x] Expo EAS Build configuration (`mobile/eas.json`) with development, preview, and production profiles
   - [x] End-to-end integration test (`tests/test_e2e_flow.py` -> passed)
-  - [x] Full test suite verification (34 backend tests + 19 mobile tests -> 100% passed)
-  - [x] Memory Bank finalized with MVP marked 100% complete
+  - [x] Full test suite verification (35 backend tests + 19 mobile tests -> 100% passed)
+- [x] Deployment Infrastructure: Modal Serverless Host
+  - [x] Modal app deployment entrypoint (`backend/app/modal_app.py`)
+  - [x] Debian Slim container with ffmpeg, libopus-dev, and python dependencies
+  - [x] Secret binding to `ai-buddy-secrets` for all 8 backend environment variables
+  - [x] Warm container persistence (`min_containers=1`) and 24-hour timeout (`timeout=86400`)
 
 ## Pending Work
-- None (All 6 core development phases completed and verified).
+- None (All core development and serverless deployment phases completed and verified).
 
 ## Known Technical Debt / Blockers
 - None.
