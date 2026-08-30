@@ -12,7 +12,7 @@
   - [x] Token minting endpoint `POST /api/v1/auth/token` (`backend/app/auth.py`)
   - [x] User entitlement verification service (`backend/app/services/entitlements.py`)
   - [x] Secret isolation and environment configuration (`backend/app/config.py`)
-  - [x] Comprehensive automated test suite (`tests/test_auth.py` -> 8 passed)
+  - [x] Comprehensive automated test suite (`tests/test_auth.py` -> 9 passed, all 10 unit tests passing)
 
 ## Pending Work
 - [ ] Phase 2: LiveKit Agent Python worker with OpenAI Realtime API

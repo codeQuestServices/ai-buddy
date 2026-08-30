@@ -21,11 +21,11 @@
 - `.agents/memory/`: Project state memory bank.
 
 ## Required Environment Schemas (Never commit actual secrets)
-- Backend (`/backend/.env`):
+- Backend (`/backend/.env.example`):
   - `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`
   - `OPENAI_API_KEY`
   - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
   - `MEM0_API_KEY`
-- Mobile (`/mobile/.env`):
+- Mobile (`/mobile/.env.example`):
   - `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`
   - `EXPO_PUBLIC_REVENUECAT_APPLE_KEY`
