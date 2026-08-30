@@ -1,20 +1,25 @@
 # Active Context
 
 ## Current Status
-- **Phase**: Phase 1 (Security & Token Infrastructure) Complete & Verified ([APPROVED])
-- **Active Task**: FastAPI authentication and token minting service operational with automated test suite passing (10/10 tests).
+- **Phase**: Phase 2 (LiveKit Voice Agent Core) Complete & Verified ([APPROVED])
+- **Active Task**: Real-time voice agent worker and test suite operational with all 20 unit/integration tests passing.
 
 ## Recent Changes
-- Created FastAPI backend entry point at `backend/app/main.py` with CORS support, health check `/healthz`, and custom request validation handler returning 400 Bad Request on invalid/missing payloads.
-- Implemented `backend/app/auth.py` providing `POST /api/v1/auth/token` endpoint for minting short-lived (15-min) LiveKit access tokens with room join/publish/subscribe permissions.
-- Implemented `backend/app/services/entitlements.py` for user entitlement verification against Supabase user metadata and RevenueCat customer info using service keys.
-- Created `backend/app/config.py` loading server configuration and secrets (`LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`) from environment variables while ensuring no secrets are exposed in API responses.
-- Created root `pytest.ini` and `backend/__init__.py`.
-- Scaffolding test suite `tests/test_auth.py` covering successful token generation, default and custom room names, parameter validation (400 Bad Request), entitlement rejection (403 Forbidden), mocked entitlement dependency overrides, TTL claims verification, and response secret isolation.
-- Verified test suite with `pytest tests/test_auth.py` (100% passing).
+- Implemented `backend/app/agent.py` using `livekit-agents` and `livekit-plugins-openai` / `livekit-plugins-silero`:
+  - Configured empathetic AI companion persona and system prompt ("AI Buddy / Echo") with brief, conversational 1-3 sentence turns.
+  - Configured Voice Activity Detection (VAD) via Silero VAD, OpenAI Realtime speech-to-speech transport model, and native interruption handling (`allow_interruptions=True`).
+  - Implemented `VoiceLifecycleHandlers` tracking audio stream state transitions (`user_started_speaking`, `user_stopped_speaking`, `agent_started_speaking`, `agent_stopped_speaking`).
+  - Implemented backend `SessionCircuitBreaker` enforcing a 20-minute (1200s) maximum session usage cap with automated room disconnect.
+  - Configured worker entrypoint and `WorkerOptions` runner.
+- Created `tests/test_agent.py` covering:
+  - System prompt persona and instructions validation.
+  - VAD, interruption handling, and Realtime model agent configuration.
+  - 20-minute session circuit breaker trigger, timer cancellation, and timeout callbacks.
+  - Audio stream lifecycle handlers and state transition event firing.
+  - LiveKit `JobContext` worker entrypoint connection and session lifecycle orchestration.
+- Verified test suite with `pytest tests/test_agent.py` (10/10 passed) and full suite `pytest` (20/20 passed).
 
 ## Next Steps
-- Phase 2: LiveKit Agent Python worker implementation with OpenAI Realtime API for two-way voice streaming.
-- Phase 3: Supabase (pgvector) + Mem0 long-term memory integration.
+- Phase 3: Long-term memory integration using Supabase (pgvector) + Mem0 Python SDK.
 - Phase 4: Expo React Native 3D Avatar canvas with Oculus visemes in React Three Fiber.
 - Phase 5: RevenueCat mobile subscription paywall & client integration.
