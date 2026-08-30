@@ -1,8 +1,8 @@
 /**
- * Main Companion Screen featuring 3D Avatar Canvas, Viseme Sync, and Status Badges.
+ * Main Companion Screen featuring 3D Avatar Canvas, Viseme Sync, Session Cap Timer, and Paywall Guardrail.
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,13 @@ import {
 import { Canvas } from '@react-three/fiber';
 import { Avatar } from '../components/Avatar';
 import { useVisemeSync } from '../hooks/useVisemeSync';
+import {
+  useEntitlements,
+  calculateRemainingSessionSeconds,
+  shouldTriggerSessionCap,
+  FREE_TIER_MAX_SESSION_SECONDS,
+} from '../hooks/useEntitlements';
+import { PaywallModal } from '../components/PaywallModal';
 
 export type CompanionState = 'connecting' | 'idle' | 'listening' | 'speaking';
 
@@ -31,9 +38,78 @@ export function CompanionScreen({
 }: CompanionScreenProps) {
   const [companionState, setCompanionState] = useState<CompanionState>('idle');
   const [isMuted, setIsMuted] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  const [isPaywallVisible, setIsPaywallVisible] = useState<boolean>(false);
+
+  // RevenueCat Entitlements Hook
+  const {
+    activeTier,
+    isSubscribed,
+    purchasePackage,
+    restorePurchases,
+    loading: purchasesLoading,
+  } = useEntitlements();
 
   // Synchronize LiveKit viseme frames
   const { currentWeightsRef, activeViseme } = useVisemeSync(room);
+
+  // 1-second Session Duration Countdown Timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setElapsedSeconds((prev) => {
+        const next = prev + 1;
+
+        // Check if session cap is exceeded for current tier
+        if (shouldTriggerSessionCap(next, activeTier)) {
+          handleSessionCapReached();
+        }
+        return next;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [activeTier]);
+
+  // Handle Room Disconnect on Session Limit Expiry
+  const handleSessionCapReached = () => {
+    if (room && typeof room.disconnect === 'function') {
+      try {
+        room.disconnect();
+      } catch {}
+    }
+    if (onDisconnect) {
+      onDisconnect();
+    }
+    setIsPaywallVisible(true);
+  };
+
+  // Listen for backend room disconnects
+  useEffect(() => {
+    if (!room || typeof room.on !== 'function') return;
+
+    const handleRoomDisconnected = () => {
+      // If disconnected unexpectedly, check if it was due to backend circuit breaker
+      if (shouldTriggerSessionCap(elapsedSeconds, activeTier)) {
+        setIsPaywallVisible(true);
+      }
+    };
+
+    room.on('disconnected', handleRoomDisconnected);
+    return () => {
+      if (typeof room.off === 'function') {
+        room.off('disconnected', handleRoomDisconnected);
+      }
+    };
+  }, [room, elapsedSeconds, activeTier]);
+
+  const remainingSeconds = calculateRemainingSessionSeconds(elapsedSeconds, activeTier);
+
+  const formatTimer = (totalSeconds: number): string => {
+    if (totalSeconds === Infinity) return '∞ Unlimited';
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
 
   const getStatusBadgeConfig = () => {
     switch (companionState) {
@@ -43,7 +119,6 @@ export function CompanionScreen({
           bgColor: 'rgba(245, 158, 11, 0.15)',
           borderColor: '#f59e0b',
           dotColor: '#f59e0b',
-          glowColor: 'rgba(245, 158, 11, 0.4)',
         };
       case 'listening':
         return {
@@ -51,7 +126,6 @@ export function CompanionScreen({
           bgColor: 'rgba(16, 185, 129, 0.15)',
           borderColor: '#10b981',
           dotColor: '#10b981',
-          glowColor: 'rgba(16, 185, 129, 0.4)',
         };
       case 'speaking':
         return {
@@ -59,7 +133,6 @@ export function CompanionScreen({
           bgColor: 'rgba(139, 92, 246, 0.15)',
           borderColor: '#8b5cf6',
           dotColor: '#8b5cf6',
-          glowColor: 'rgba(139, 92, 246, 0.5)',
         };
       case 'idle':
       default:
@@ -68,7 +141,6 @@ export function CompanionScreen({
           bgColor: 'rgba(148, 163, 184, 0.12)',
           borderColor: '#64748b',
           dotColor: '#38bdf8',
-          glowColor: 'rgba(56, 189, 248, 0.3)',
         };
     }
   };
@@ -98,6 +170,30 @@ export function CompanionScreen({
             {statusBadge.label}
           </Text>
         </View>
+      </View>
+
+      {/* Session Timer & Upgrade Pill */}
+      <View style={styles.sessionTimerBar}>
+        <View style={styles.timerContainer}>
+          <Text style={styles.timerLabel}>Session Time Left:</Text>
+          <Text
+            style={[
+              styles.timerValue,
+              remainingSeconds < 300 && remainingSeconds !== Infinity && styles.timerValueWarning,
+            ]}
+          >
+            {formatTimer(remainingSeconds)}
+          </Text>
+        </View>
+
+        {!isSubscribed && (
+          <TouchableOpacity
+            style={styles.upgradeHeaderBtn}
+            onPress={() => setIsPaywallVisible(true)}
+          >
+            <Text style={styles.upgradeHeaderBtnText}>⚡ Upgrade</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* 3D Canvas View Container */}
@@ -156,17 +252,24 @@ export function CompanionScreen({
 
           <TouchableOpacity
             style={[styles.actionBtn, styles.disconnectBtn]}
-            onPress={onDisconnect}
+            onPress={onDisconnect || handleSessionCapReached}
           >
             <Text style={styles.disconnectBtnText}>End Call</Text>
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Subscription Paywall Modal */}
+      <PaywallModal
+        visible={isPaywallVisible}
+        onClose={() => setIsPaywallVisible(false)}
+        onPurchase={purchasePackage}
+        onRestore={restorePurchases}
+        isLoading={purchasesLoading}
+      />
     </SafeAreaView>
   );
 }
-
-const { width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
@@ -210,6 +313,48 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  sessionTimerBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(30, 41, 59, 0.4)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  timerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  timerLabel: {
+    fontSize: 12,
+    color: '#94a3b8',
+    fontWeight: '500',
+  },
+  timerValue: {
+    fontSize: 13,
+    color: '#38bdf8',
+    fontWeight: '700',
+    fontFamily: 'Courier',
+  },
+  timerValueWarning: {
+    color: '#f59e0b',
+  },
+  upgradeHeaderBtn: {
+    backgroundColor: 'rgba(139, 92, 246, 0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#8b5cf6',
+  },
+  upgradeHeaderBtnText: {
+    color: '#c4b5fd',
+    fontSize: 11,
+    fontWeight: '700',
   },
   canvasContainer: {
     flex: 1,

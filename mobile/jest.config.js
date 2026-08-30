@@ -4,6 +4,10 @@ module.exports = {
   testEnvironment: 'node',
   testMatch: ['**/__tests__/**/*.test.ts?(x)'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+  moduleNameMapper: {
+    '^react-native$': '<rootDir>/__mocks__/react-native.js',
+    '^react-native-purchases$': '<rootDir>/__mocks__/react-native-purchases.js',
+  },
   transform: {
     '^.+\\.tsx?$': [
       'ts-jest',

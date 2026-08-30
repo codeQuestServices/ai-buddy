@@ -32,9 +32,15 @@
   - [x] Companion screen voice UI with 3D Canvas and status badges (`mobile/src/screens/CompanionScreen.tsx`)
   - [x] Comprehensive mobile unit tests (`mobile/__tests__/Avatar.test.tsx` -> 11 passed)
   - [x] Zero TypeScript errors (`npx tsc --noEmit`)
+- [x] Phase 5: Billing & Usage Guardrails
+  - [x] RevenueCat entitlements hook with tier resolution (`mobile/src/hooks/useEntitlements.ts`)
+  - [x] App Store compliant Paywall modal (`mobile/src/components/PaywallModal.tsx`)
+  - [x] Session cap countdown (1200s) & automated disconnect guardrail (`mobile/src/screens/CompanionScreen.tsx`)
+  - [x] Comprehensive mobile Jest unit tests (`mobile/__tests__/Entitlements.test.tsx` -> 8 passed)
+  - [x] Zero TypeScript errors (`npx tsc --noEmit`)
 
 ## Pending Work
-- [ ] Phase 5: RevenueCat mobile subscription paywall & client integration
+- [ ] End-to-end full stack verification & deployment readiness
 
 ## Known Technical Debt / Blockers
 - None.
