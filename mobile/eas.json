@@ -1,0 +1,47 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://vrlwggrajfcbetjzsxpw.supabase.co",
+        "EXPO_PUBLIC_REVENUECAT_APPLE_KEY": "appl_mock_revenuecat_dev_key"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://vrlwggrajfcbetjzsxpw.supabase.co"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "distribution": "store",
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://vrlwggrajfcbetjzsxpw.supabase.co"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "apple-developer@ai-buddy.app",
+        "ascAppId": "6470000000",
+        "appleTeamId": "TEAMID12345"
+      }
+    }
+  }
+}

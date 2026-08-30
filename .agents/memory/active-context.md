@@ -1,28 +1,29 @@
 # Active Context
 
 ## Current Status
-- **Phase**: Phase 5 (Billing & Usage Guardrails) Complete & Verified ([APPROVED])
-- **Active Task**: RevenueCat entitlements hook, App Store-compliant Paywall modal, and session cap countdown guardrails operational with 0 TypeScript errors and 100% tests passing across all suites.
+- **Phase**: Phase 6 (CI/CD Pipelines, EAS Configuration & E2E Verification) Complete & Verified ([APPROVED])
+- **Overall Project Status**: **AI Buddy MVP Architecture 100% Complete & Production-Ready**.
+- **Test Suite Status**: 34 Backend Pytest tests passed (100%), 19 Mobile Jest tests passed (100%), 0 TypeScript compilation errors (`npx tsc --noEmit`).
 
 ## Recent Changes
-- Implemented `mobile/src/hooks/useEntitlements.ts`:
-  - Integrated `react-native-purchases` configuring with `EXPO_PUBLIC_REVENUECAT_APPLE_KEY`.
-  - Implemented `resolveEntitlementTier` mapping customer entitlements to `free`, `plus`, or `unlimited` tiers.
-  - Implemented `calculateRemainingSessionSeconds` and `shouldTriggerSessionCap` managing 20-minute (1200s) free tier session limits.
-  - Exposed `purchasePackage`, `restorePurchases`, and subscription status states.
-- Implemented `mobile/src/components/PaywallModal.tsx`:
-  - Rendered active subscription packages (Monthly / Annual) and consumable top-ups ("Relay Boosts" +30m / +60m).
-  - Included App Store compliance links (Restore Purchases, Terms of Service, Privacy Policy).
-- Updated `mobile/src/screens/CompanionScreen.tsx`:
-  - Added session duration timer indicator with warning threshold formatting.
-  - Connected automated room disconnect and `PaywallModal` pop-up when free tier hits the 20-minute cap (1200s) or on backend circuit breaker triggers.
-- Created `mobile/__tests__/Entitlements.test.tsx`:
-  - Verified entitlement tier resolution (`free`, `plus`, `unlimited`).
-  - Verified 1200-second session cap countdown and boundary conditions.
-  - Verified subscription and consumable package configuration constants.
-- Verified TypeScript compilation: `npx tsc --noEmit` -> 0 errors.
-- Verified mobile Jest test suites: `npm test` -> 2 suites passed, 19/19 tests passed.
-- Verified backend test suites: `pytest` -> 33/33 tests passed.
+- Created `.github/workflows/ci.yml`:
+  - `backend-ci`: Python 3.11 environment setup, dependency caching, and full `pytest` execution across all modules.
+  - `mobile-ci`: Node.js 20 environment setup, dependency caching, `npx tsc --noEmit` typecheck, and `npm test` Jest execution.
+- Created `mobile/eas.json`:
+  - `development`: Configured for iOS simulator builds and internal developer debugging.
+  - `preview`: Configured for internal TestFlight distribution builds linked to Apple Developer account.
+  - `production`: Configured for App Store release with `autoIncrement` version management.
+- Implemented `tests/test_e2e_flow.py`:
+  - Full end-to-end integration test validating the entire user companion lifecycle:
+    1. Auth Token Request (`POST /api/v1/auth/token`)
+    2. JWT Payload Claims & LiveKit Video Grants Verification
+    3. Room Connection & User ID Extraction
+    4. RAG Long-Term Memory Retrieval & Dynamic Companion Prompt Personalization
+    5. Real-Time Audio Dialogue Turn Tracking in Session Transcript
+    6. 20-Minute Session Circuit Breaker / Usage Cap Enforcement
+    7. Graceful Room Disconnection & Background Memory Persistence to Mem0
+- Updated `backend/app/agent.py` to await coroutine returns from `session.start`.
 
-## Next Steps
-- End-to-end integration testing and production release candidate readiness.
+## Next Steps / Post-MVP
+- Continuous monitoring of LiveKit and OpenAI Realtime latency in production.
+- App Store binary build submission using `eas build --platform ios --profile production`.

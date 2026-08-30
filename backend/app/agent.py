@@ -244,7 +244,9 @@ async def entrypoint(ctx: JobContext) -> None:
     ctx.add_shutdown_callback(on_shutdown)
 
     # Start the session with the room
-    session.start(agent, room=ctx.room)
+    start_res = session.start(agent, room=ctx.room)
+    if asyncio.iscoroutine(start_res):
+        await start_res
 
 
 def run_agent_worker() -> None:
