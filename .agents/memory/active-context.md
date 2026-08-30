@@ -1,20 +1,18 @@
 # Active Context
 
 ## Current Status
-- **Phase**: Workspace Initialization & Environment Scaffolding Completed
-- **Active Task**: Bootstrap verified. Ready for feature planning and implementation.
+- **Phase**: Phase 1 (Security & Token Infrastructure) Complete & Verified
+- **Active Task**: FastAPI authentication and token minting service operational with automated test suite.
 
 ## Recent Changes
-- Initialized local memory bank in `.agents/memory/` (`project-brief.md`, `system-patterns.md`, `cloud-architecture.md`, `active-context.md`, `progress.md`).
-- Configured root `.gitignore`.
-- Set up `/backend` configuration: `requirements.txt`, `.env.example`, `pytest.ini`.
-- Created `/tests` harness with smoke tests passing.
-- Initialized `/mobile` Expo TypeScript application with `livekit-react-native`, `react-native-purchases`, `@react-three/fiber`, `three`, and `@types/three`.
-- Verified clean TypeScript compilation (`npx tsc --noEmit` -> 0 errors).
-- Verified test discovery via `pytest`.
+- Created FastAPI backend application in `backend/app/main.py` with CORS support and healthcheck.
+- Implemented `backend/app/auth.py` providing `POST /api/v1/auth/token` endpoint for minting short-lived (15-min) LiveKit access tokens with room join/publish/subscribe permissions.
+- Implemented `backend/app/services/entitlements.py` for user entitlement verification against Supabase user metadata and RevenueCat.
+- Created `backend/app/config.py` managing server environment variable access without leaking secrets.
+- Implemented comprehensive test suite in `tests/test_auth.py` covering token minting, JWT claim payload verification, parameter validation (400/422), unentitled user blocking (403), and secret isolation.
+- Updated `backend/requirements.txt` and `backend/pytest.ini`.
 
 ## Next Steps
-- Implement backend LiveKit Agent worker and OpenAI Realtime integration.
-- Implement Supabase + Mem0 long-term memory retrieval and persistence.
-- Implement 3D Avatar canvas with Oculus viseme animation in React Three Fiber.
-- Implement RevenueCat subscription paywall and entitlement checks.
+- Phase 2: LiveKit Agent Python worker implementation with OpenAI Realtime API for two-way voice streaming.
+- Phase 3: Supabase (pgvector) + Mem0 long-term memory integration.
+- Phase 4: Expo React Native 3D Avatar canvas with Oculus visemes in React Three Fiber.
