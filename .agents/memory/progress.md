@@ -20,9 +20,14 @@
   - [x] Audio stream lifecycle event hooks (`user_started_speaking`, `user_stopped_speaking`, etc.)
   - [x] 20-minute session circuit breaker (`SessionCircuitBreaker`)
   - [x] Comprehensive automated test suite (`tests/test_agent.py` -> 10 passed)
+- [x] Phase 3: RAG & Persistent Memory Pipeline
+  - [x] Mem0 vector memory service (`backend/app/services/memory.py`)
+  - [x] Dynamic persistent context retrieval & prompt injection (`get_user_context`)
+  - [x] Asynchronous background fact extraction & storage (`store_user_facts`)
+  - [x] Integration with LiveKit agent entrypoint on join & shutdown hooks
+  - [x] Comprehensive automated test suite (`tests/test_memory.py` -> 13 passed)
 
 ## Pending Work
-- [ ] Phase 3: Mem0 + Supabase long-term memory integration
 - [ ] Phase 4: 3D Avatar canvas with Oculus visemes in React Three Fiber
 - [ ] Phase 5: RevenueCat mobile subscription paywall & client integration
 

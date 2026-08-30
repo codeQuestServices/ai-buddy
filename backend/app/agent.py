@@ -1,10 +1,10 @@
-"""LiveKit Voice Agent Core for AI Buddy."""
+"""LiveKit Voice Agent Core for AI Buddy with RAG & Persistent Memory."""
 
 import asyncio
 import logging
 import os
 import time
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from livekit.agents import (
     AutoSubscribe,
@@ -15,6 +15,12 @@ from livekit.agents import (
     AgentSession,
 )
 from livekit.plugins import openai, silero
+
+from backend.app.services.memory import (
+    format_prompt_with_context,
+    get_user_context,
+    store_user_facts,
+)
 
 logger = logging.getLogger("ai_buddy.agent")
 
@@ -93,7 +99,7 @@ class SessionCircuitBreaker:
 
 
 class VoiceLifecycleHandlers:
-    """Manages audio stream lifecycle hooks and state tracking."""
+    """Manages audio stream lifecycle hooks, state tracking, and conversation transcripts."""
 
     def __init__(
         self,
@@ -108,6 +114,12 @@ class VoiceLifecycleHandlers:
         self.on_agent_stopped_speaking = on_agent_stopped_speaking
         self.user_is_speaking: bool = False
         self.agent_is_speaking: bool = False
+        self.transcript: List[Dict[str, str]] = []
+
+    def record_message(self, role: str, content: str) -> None:
+        """Append a message turn to the session transcript."""
+        if content and content.strip():
+            self.transcript.append({"role": role, "content": content.strip()})
 
     def handle_user_state_change(self, old_state: Optional[str], new_state: str) -> None:
         """Process user speaking state transitions."""
@@ -145,6 +157,19 @@ class VoiceLifecycleHandlers:
             new_s = getattr(event, "new_state", "")
             self.handle_agent_state_change(old_s, new_s)
 
+        @session.on("user_input_transcribed")
+        def _on_user_transcription(event: Any) -> None:
+            text = getattr(event, "transcript", "") or getattr(event, "text", "")
+            if text:
+                self.record_message("user", text)
+
+
+def extract_user_id_from_room(room_name: str) -> str:
+    """Extract or infer user_id from room naming conventions."""
+    if room_name.startswith("room_"):
+        return room_name[5:]
+    return room_name or "default_user"
+
 
 def create_voice_agent(
     instructions: str = SYSTEM_PROMPT,
@@ -179,12 +204,19 @@ def create_agent_session(
 
 
 async def entrypoint(ctx: JobContext) -> None:
-    """LiveKit Agents worker entry point."""
+    """LiveKit Agents worker entry point with RAG memory injection and persistent facts extraction."""
     logger.info("Connecting agent to room %s", ctx.room.name)
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
 
-    # Instantiate Agent & Session
-    agent = create_voice_agent()
+    # Determine user identity for memory retrieval
+    user_id = extract_user_id_from_room(ctx.room.name)
+
+    # Retrieve persistent long-term memories for dynamic prompt injection
+    user_context = await get_user_context(user_id)
+    dynamic_instructions = format_prompt_with_context(SYSTEM_PROMPT, user_context)
+
+    # Instantiate Agent with personalized instructions & Session
+    agent = create_voice_agent(instructions=dynamic_instructions)
     session = create_agent_session()
 
     # Register lifecycle event hooks
@@ -203,8 +235,13 @@ async def entrypoint(ctx: JobContext) -> None:
     )
     circuit_breaker.start()
 
-    # Ensure circuit breaker is cancelled on clean shutdown
-    ctx.add_shutdown_callback(lambda: circuit_breaker.cancel())
+    # On room disconnect / shutdown, store extracted user facts to vector memory in background
+    def on_shutdown() -> None:
+        circuit_breaker.cancel()
+        if lifecycle_handlers.transcript:
+            asyncio.create_task(store_user_facts(user_id, list(lifecycle_handlers.transcript)))
+
+    ctx.add_shutdown_callback(on_shutdown)
 
     # Start the session with the room
     session.start(agent, room=ctx.room)
