@@ -12,6 +12,9 @@ app = modal.App("ai-buddy-agent")
 # ------------------------------------------------------------------------------
 # 2. Container Image Specification (Debian Slim Python 3.11 + Audio Binaries)
 # ------------------------------------------------------------------------------
+# Resolve source package based on execution directory
+local_source_package = "backend" if os.path.exists("backend") else "app"
+
 agent_image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("ffmpeg", "libopus-dev", "git")
@@ -30,7 +33,7 @@ agent_image = (
         "python-dotenv>=1.0.0",
         "modal>=1.0.0",
     )
-    .add_local_python_source("backend")
+    .add_local_python_source(local_source_package)
 )
 
 # ------------------------------------------------------------------------------
@@ -81,7 +84,10 @@ def run_livekit_worker() -> None:
         print("[INFO] All 8 required environment keys loaded from ai-buddy-secrets successfully.")
 
     print("[INFO] Starting LiveKit Voice Agent Worker on Modal container...")
-    from backend.app.agent import run_agent_worker
+    try:
+        from backend.app.agent import run_agent_worker
+    except ImportError:
+        from app.agent import run_agent_worker
 
     # Start the continuous worker loop
     run_agent_worker()
