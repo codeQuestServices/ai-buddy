@@ -1,0 +1,310 @@
+/**
+ * Main Companion Screen featuring 3D Avatar Canvas, Viseme Sync, and Status Badges.
+ */
+
+import React, { useState, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
+  Dimensions,
+} from 'react-native';
+import { Canvas } from '@react-three/fiber';
+import { Avatar } from '../components/Avatar';
+import { useVisemeSync } from '../hooks/useVisemeSync';
+
+export type CompanionState = 'connecting' | 'idle' | 'listening' | 'speaking';
+
+export interface CompanionScreenProps {
+  room?: any;
+  user_id?: string;
+  onDisconnect?: () => void;
+}
+
+export function CompanionScreen({
+  room,
+  user_id = 'user',
+  onDisconnect,
+}: CompanionScreenProps) {
+  const [companionState, setCompanionState] = useState<CompanionState>('idle');
+  const [isMuted, setIsMuted] = useState(false);
+
+  // Synchronize LiveKit viseme frames
+  const { currentWeightsRef, activeViseme } = useVisemeSync(room);
+
+  const getStatusBadgeConfig = () => {
+    switch (companionState) {
+      case 'connecting':
+        return {
+          label: 'Connecting...',
+          bgColor: 'rgba(245, 158, 11, 0.15)',
+          borderColor: '#f59e0b',
+          dotColor: '#f59e0b',
+          glowColor: 'rgba(245, 158, 11, 0.4)',
+        };
+      case 'listening':
+        return {
+          label: 'Listening',
+          bgColor: 'rgba(16, 185, 129, 0.15)',
+          borderColor: '#10b981',
+          dotColor: '#10b981',
+          glowColor: 'rgba(16, 185, 129, 0.4)',
+        };
+      case 'speaking':
+        return {
+          label: 'Speaking (Echo)',
+          bgColor: 'rgba(139, 92, 246, 0.15)',
+          borderColor: '#8b5cf6',
+          dotColor: '#8b5cf6',
+          glowColor: 'rgba(139, 92, 246, 0.5)',
+        };
+      case 'idle':
+      default:
+        return {
+          label: 'Ready',
+          bgColor: 'rgba(148, 163, 184, 0.12)',
+          borderColor: '#64748b',
+          dotColor: '#38bdf8',
+          glowColor: 'rgba(56, 189, 248, 0.3)',
+        };
+    }
+  };
+
+  const statusBadge = getStatusBadgeConfig();
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" />
+
+      {/* Header Bar */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.headerTitle}>Echo</Text>
+          <Text style={styles.headerSubtitle}>3D AI Companion</Text>
+        </View>
+
+        {/* Dynamic Status Badge */}
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: statusBadge.bgColor, borderColor: statusBadge.borderColor },
+          ]}
+        >
+          <View style={[styles.statusDot, { backgroundColor: statusBadge.dotColor }]} />
+          <Text style={[styles.statusText, { color: statusBadge.borderColor }]}>
+            {statusBadge.label}
+          </Text>
+        </View>
+      </View>
+
+      {/* 3D Canvas View Container */}
+      <View style={styles.canvasContainer}>
+        <Canvas
+          camera={{ position: [0, 0, 2.6], fov: 45 }}
+          style={styles.canvas}
+        >
+          <Avatar
+            visemeWeights={currentWeightsRef}
+            isSpeaking={companionState === 'speaking'}
+          />
+        </Canvas>
+
+        {/* Real-time Viseme Target Debug Overlay */}
+        <View style={styles.visemeOverlay}>
+          <Text style={styles.visemeDebugText}>
+            Morph Target: {activeViseme}
+          </Text>
+        </View>
+      </View>
+
+      {/* Interactive Voice Controls */}
+      <View style={styles.controlsContainer}>
+        {/* State Toggle for Testing & Simulation */}
+        <View style={styles.stateSelector}>
+          {(['idle', 'listening', 'speaking'] as CompanionState[]).map((state) => (
+            <TouchableOpacity
+              key={state}
+              style={[
+                styles.stateButton,
+                companionState === state && styles.stateButtonActive,
+              ]}
+              onPress={() => setCompanionState(state)}
+            >
+              <Text
+                style={[
+                  styles.stateButtonText,
+                  companionState === state && styles.stateButtonTextActive,
+                ]}
+              >
+                {state.charAt(0).toUpperCase() + state.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Main Action Buttons */}
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={[styles.actionBtn, isMuted && styles.actionBtnActive]}
+            onPress={() => setIsMuted(!isMuted)}
+          >
+            <Text style={styles.actionBtnText}>{isMuted ? 'Unmute' : 'Mute'}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.disconnectBtn]}
+            onPress={onDisconnect}
+          >
+            <Text style={styles.disconnectBtnText}>End Call</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const { width } = Dimensions.get('window');
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0a0d18',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#f8fafc',
+    letterSpacing: 0.5,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 2,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  canvasContainer: {
+    flex: 1,
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  canvas: {
+    width: '100%',
+    height: '100%',
+  },
+  visemeOverlay: {
+    position: 'absolute',
+    bottom: 16,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  visemeDebugText: {
+    color: '#38bdf8',
+    fontSize: 12,
+    fontWeight: '500',
+    fontFamily: 'Courier',
+  },
+  controlsContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+    paddingTop: 12,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  stateSelector: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 4,
+  },
+  stateButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  stateButtonActive: {
+    backgroundColor: '#6366f1',
+  },
+  stateButtonText: {
+    color: '#94a3b8',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  stateButtonTextActive: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  actionBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  actionBtnActive: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderColor: '#ef4444',
+  },
+  actionBtnText: {
+    color: '#f1f5f9',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  disconnectBtn: {
+    backgroundColor: '#dc2626',
+    borderColor: '#b91c1c',
+  },
+  disconnectBtnText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+});
+
+export default CompanionScreen;

@@ -26,9 +26,14 @@
   - [x] Asynchronous background fact extraction & storage (`store_user_facts`)
   - [x] Integration with LiveKit agent entrypoint on join & shutdown hooks
   - [x] Comprehensive automated test suite (`tests/test_memory.py` -> 13 passed)
+- [x] Phase 4: 3D Avatar & Viseme Renderer
+  - [x] Oculus viseme data channel sync hook & lerp interpolation (`mobile/src/hooks/useVisemeSync.ts`)
+  - [x] 3D Avatar component with GLTF support and idle micro-animations (`mobile/src/components/Avatar.tsx`)
+  - [x] Companion screen voice UI with 3D Canvas and status badges (`mobile/src/screens/CompanionScreen.tsx`)
+  - [x] Comprehensive mobile unit tests (`mobile/__tests__/Avatar.test.tsx` -> 11 passed)
+  - [x] Zero TypeScript errors (`npx tsc --noEmit`)
 
 ## Pending Work
-- [ ] Phase 4: 3D Avatar canvas with Oculus visemes in React Three Fiber
 - [ ] Phase 5: RevenueCat mobile subscription paywall & client integration
 
 ## Known Technical Debt / Blockers
