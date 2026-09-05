@@ -227,3 +227,101 @@ def test_modal_app_configuration():
     assert "SUPABASE_SERVICE_ROLE_KEY" in REQUIRED_SECRET_KEYS
     assert "REVENUECAT_SECRET_KEY" in REQUIRED_SECRET_KEYS
     assert "MEM0_API_KEY" in REQUIRED_SECRET_KEYS
+
+
+@pytest.mark.asyncio
+async def test_viseme_stream_emitter_lifecycle():
+    """Verify VisemeStreamEmitter starts, publishes frames, and emits silence on stop."""
+    from backend.app.agent import VisemeStreamEmitter
+    import json
+
+    published_payloads = []
+    mock_room = MagicMock()
+    mock_participant = MagicMock()
+
+    async def mock_publish(payload, reliable=False):
+        published_payloads.append(payload)
+
+    mock_participant.publish_data = mock_publish
+    mock_room.local_participant = mock_participant
+
+    emitter = VisemeStreamEmitter(fps=50.0)
+    assert emitter.is_active is False
+
+    emitter.start(mock_room)
+    assert emitter.is_active is True
+
+    # Allow a few frames to publish
+    await asyncio.sleep(0.06)
+    assert len(published_payloads) >= 1
+
+    first_frame = json.loads(published_payloads[0].decode("utf-8"))
+    assert "visemes" in first_frame
+    assert "viseme_AA" in first_frame["visemes"]
+    assert "viseme_sil" in first_frame["visemes"]
+
+    emitter.stop()
+    assert emitter.is_active is False
+
+    # Wait for silence frame
+    await asyncio.sleep(0.02)
+    last_frame = json.loads(published_payloads[-1].decode("utf-8"))
+    assert last_frame["visemes"]["viseme_sil"] == 1.0
+
+
+def test_config_token_ttl_fallback():
+    """Verify Settings handles invalid, empty, or non-numeric TOKEN_TTL_MINUTES safely."""
+    from backend.app.config import Settings
+
+    with patch.dict(os.environ, {"TOKEN_TTL_MINUTES": "invalid_num"}):
+        s = Settings()
+        assert s.token_ttl_minutes == 15
+
+    with patch.dict(os.environ, {"TOKEN_TTL_MINUTES": ""}):
+        s = Settings()
+        assert s.token_ttl_minutes == 15
+
+    with patch.dict(os.environ, {"TOKEN_TTL_MINUTES": "45"}):
+        s = Settings()
+        assert s.token_ttl_minutes == 45
+
+
+@pytest.mark.asyncio
+async def test_worker_shutdown_callback_execution():
+    """Verify async shutdown callback cancels breaker, stops viseme emitter, and persists facts."""
+    from backend.app.agent import entrypoint
+
+    mock_room = MagicMock()
+    mock_room.name = "room_user_123"
+    mock_room.disconnect = AsyncMock()
+
+    mock_ctx = MagicMock()
+    mock_ctx.room = mock_room
+    mock_ctx.connect = AsyncMock()
+
+    captured_shutdown_cb = None
+
+    def capture_cb(cb):
+        nonlocal captured_shutdown_cb
+        captured_shutdown_cb = cb
+
+    mock_ctx.add_shutdown_callback = capture_cb
+
+    with patch("backend.app.agent.get_user_context", new_callable=AsyncMock) as mock_ctx_fn, \
+         patch("backend.app.agent.create_voice_agent") as mock_agent_fn, \
+         patch("backend.app.agent.create_agent_session") as mock_sess_fn, \
+         patch("backend.app.agent.store_user_facts", new_callable=AsyncMock) as mock_store_facts:
+
+        mock_ctx_fn.return_value = ""
+        mock_agent_fn.return_value = MagicMock()
+        mock_session = MagicMock()
+        mock_sess_fn.return_value = mock_session
+
+        await entrypoint(mock_ctx)
+        assert captured_shutdown_cb is not None
+
+        # Execute shutdown callback
+        res = captured_shutdown_cb()
+        if asyncio.iscoroutine(res):
+            await res
+

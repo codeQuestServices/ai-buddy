@@ -15,13 +15,15 @@ import {
   ActivityIndicator,
   Linking,
 } from 'react-native';
-import { PurchasesPackage } from 'react-native-purchases';
+import { PurchasesPackage, PurchasesOffering } from 'react-native-purchases';
 
 export interface PaywallModalProps {
   visible: boolean;
   onClose: () => void;
   onPurchase?: (pkg: any) => Promise<boolean>;
   onRestore?: () => Promise<boolean>;
+  offerings?: PurchasesOffering | null;
+  packages?: PurchasesPackage[];
   isLoading?: boolean;
 }
 
@@ -62,16 +64,32 @@ export function PaywallModal({
   onClose,
   onPurchase,
   onRestore,
+  offerings,
+  packages,
   isLoading = false,
 }: PaywallModalProps) {
   const [selectedPlan, setSelectedPlan] = useState<string>('annual_unlimited');
   const [purchasing, setPurchasing] = useState(false);
 
+  // Helper to resolve live PurchasesPackage from RevenueCat offerings
+  const findMatchingPackage = (planId: string): PurchasesPackage | undefined => {
+    const available = offerings?.availablePackages || packages || [];
+    return available.find(
+      (p) =>
+        p.identifier === planId ||
+        p.product?.identifier === planId ||
+        (planId.includes('monthly') && (p.packageType === 'MONTHLY' || p.identifier.toLowerCase().includes('monthly'))) ||
+        (planId.includes('annual') && (p.packageType === 'ANNUAL' || p.identifier.toLowerCase().includes('annual')))
+    );
+  };
+
   const handlePurchase = async (planId: string) => {
     if (!onPurchase) return;
     try {
       setPurchasing(true);
-      const success = await onPurchase({ identifier: planId });
+      const matchedPkg = findMatchingPackage(planId);
+      // Pass full RevenueCat PurchasesPackage object if resolved, fallback to synthetic identifier
+      const success = await onPurchase(matchedPkg || { identifier: planId });
       if (success) {
         onClose();
       }
@@ -140,7 +158,9 @@ export function PaywallModal({
                 )}
                 <View style={styles.planHeader}>
                   <Text style={styles.planTitle}>{tier.title}</Text>
-                  <Text style={styles.planPrice}>{tier.price}</Text>
+                  <Text style={styles.planPrice}>
+                    {findMatchingPackage(tier.id)?.product?.priceString || tier.price}
+                  </Text>
                 </View>
                 <View style={styles.featureList}>
                   {tier.features.map((feat, idx) => (

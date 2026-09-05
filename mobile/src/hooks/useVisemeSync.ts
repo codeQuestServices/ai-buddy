@@ -159,12 +159,72 @@ export function interpolateVisemeWeights(
 }
 
 /**
+ * Critically damped exponential spring smoothing for organic, jitter-free lip sync.
+ */
+export function interpolateVisemeWeightsSpring(
+  current: VisemeWeights,
+  target: Partial<Record<OculusVisemeKey, number>>,
+  deltaSeconds: number,
+  halfLife: number = 0.04
+): VisemeWeights {
+  // Exponential decay factor: 1 - 2^(-deltaSeconds / halfLife)
+  const safeDelta = Math.min(0.1, Math.max(0.0, deltaSeconds));
+  const factor = 1.0 - Math.pow(0.5, safeDelta / Math.max(0.001, halfLife));
+  const nextWeights: VisemeWeights = { ...current };
+
+  for (const key of OCULUS_VISEME_KEYS) {
+    const targetVal = target[key] ?? (key === 'viseme_sil' ? 1.0 : 0.0);
+    const clampedTarget = Math.max(0.0, Math.min(1.0, targetVal));
+    const currentVal = current[key] ?? 0.0;
+    const nextVal = currentVal + (clampedTarget - currentVal) * factor;
+    nextWeights[key] = Math.max(0.0, Math.min(1.0, nextVal));
+  }
+
+  return nextWeights;
+}
+
+/**
+ * Generates procedural Oculus viseme blendshape weights from an audio amplitude energy value [0.0, 1.0].
+ * Acts as an acoustic/energy fallback when raw viseme data packets are unavailable.
+ */
+export function generateProceduralVisemes(amplitude: number): Partial<Record<OculusVisemeKey, number>> {
+  const clampedAmp = Math.max(0.0, Math.min(1.0, amplitude));
+  if (clampedAmp < 0.05) {
+    return {
+      viseme_sil: 1.0,
+      viseme_AA: 0.0,
+      viseme_O: 0.0,
+      viseme_E: 0.0,
+      viseme_PP: 0.0,
+    };
+  }
+
+  return {
+    viseme_sil: Math.max(0.0, 1.0 - clampedAmp * 1.5),
+    viseme_AA: clampedAmp * 0.75,
+    viseme_O: clampedAmp * 0.45,
+    viseme_E: clampedAmp * 0.3,
+    viseme_PP: clampedAmp < 0.2 ? 0.2 : 0.0,
+  };
+}
+
+export interface UseVisemeSyncOptions {
+  smoothing?: 'lerp' | 'spring';
+  dampingSpeed?: number;
+  halfLife?: number;
+}
+
+/**
  * Custom React hook managing real-time viseme stream subscriptions and smooth interpolation.
  */
-export function useVisemeSync(room?: any) {
+export function useVisemeSync(room?: any, options?: UseVisemeSyncOptions) {
   const targetWeightsRef = useRef<Partial<Record<OculusVisemeKey, number>>>({});
   const currentWeightsRef = useRef<VisemeWeights>(createDefaultVisemeWeights());
   const [activeViseme, setActiveViseme] = useState<OculusVisemeKey>('viseme_sil');
+
+  const smoothing = options?.smoothing ?? 'spring';
+  const dampingSpeed = options?.dampingSpeed ?? 24.0;
+  const halfLife = options?.halfLife ?? 0.04;
 
   const onDataReceived = useCallback((payload: Uint8Array | string, participant?: any) => {
     const parsed = parseVisemePayload(payload);
@@ -203,14 +263,30 @@ export function useVisemeSync(room?: any) {
   /**
    * Advance interpolation by delta frame time (called in useFrame).
    */
-  const updateFrame = useCallback((deltaSeconds: number): VisemeWeights => {
-    const next = interpolateVisemeWeights(
-      currentWeightsRef.current,
-      targetWeightsRef.current,
-      deltaSeconds
-    );
-    currentWeightsRef.current = next;
-    return next;
+  const updateFrame = useCallback(
+    (deltaSeconds: number): VisemeWeights => {
+      const next =
+        smoothing === 'spring'
+          ? interpolateVisemeWeightsSpring(
+              currentWeightsRef.current,
+              targetWeightsRef.current,
+              deltaSeconds,
+              halfLife
+            )
+          : interpolateVisemeWeights(
+              currentWeightsRef.current,
+              targetWeightsRef.current,
+              deltaSeconds,
+              dampingSpeed
+            );
+      currentWeightsRef.current = next;
+      return next;
+    },
+    [smoothing, dampingSpeed, halfLife]
+  );
+
+  const setTargetWeights = useCallback((weights: Partial<Record<OculusVisemeKey, number>>) => {
+    targetWeightsRef.current = weights;
   }, []);
 
   return {
@@ -219,5 +295,6 @@ export function useVisemeSync(room?: any) {
     activeViseme,
     onDataReceived,
     updateFrame,
+    setTargetWeights,
   };
 }

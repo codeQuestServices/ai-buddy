@@ -21,7 +21,11 @@ class Settings:
         self.supabase_service_role_key: Optional[str] = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
         self.revenuecat_secret_key: Optional[str] = os.getenv("REVENUECAT_SECRET_KEY")
         self.mem0_api_key: Optional[str] = os.getenv("MEM0_API_KEY")
-        self.token_ttl_minutes: int = int(os.getenv("TOKEN_TTL_MINUTES", "15"))
+        raw_ttl = os.getenv("TOKEN_TTL_MINUTES", "15")
+        try:
+            self.token_ttl_minutes = int(raw_ttl) if raw_ttl else 15
+        except (ValueError, TypeError):
+            self.token_ttl_minutes = 15
 
 
 @lru_cache

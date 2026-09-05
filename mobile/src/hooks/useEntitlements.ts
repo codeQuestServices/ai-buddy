@@ -124,6 +124,12 @@ export function useEntitlements() {
     if (typeof Purchases.addCustomerInfoUpdateListener === 'function') {
       Purchases.addCustomerInfoUpdateListener(customerInfoListener);
     }
+
+    return () => {
+      if (typeof Purchases.removeCustomerInfoUpdateListener === 'function') {
+        Purchases.removeCustomerInfoUpdateListener(customerInfoListener);
+      }
+    };
   }, []);
 
   const purchasePackage = useCallback(async (pkg: PurchasesPackage): Promise<boolean> => {

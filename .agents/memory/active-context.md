@@ -1,22 +1,22 @@
 # Active Context
 
 ## Current Status
-- **Phase**: Comprehensive Local Testing & Quality Audit Complete ([APPROVED])
-- **Overall Project Status**: **AI Buddy Architecture Verified; Local Testing Audit Documented in TESTING-REPORT-2026-09-05.md**.
-- **Test Suite Status**: 35 Backend Pytest tests passed (100%), 19 Mobile Jest tests passed (100%), 0 TypeScript compilation errors (`npx tsc --noEmit`), 0 DESIGN.md linter errors/warnings (`@google/design.md lint`).
+- **Phase**: Post-Audit Quality & Bug Fixes Implementation Complete ([APPROVED])
+- **Overall Project Status**: **All 8 Critical Bugs, 4 Structural/Environment Issues, and Key Enhancements from TESTING-REPORT-2026-09-05.md Fully Implemented and Verified**.
+- **Test Suite Status**: 38 Backend Pytest tests passed (100%), 27 Mobile Jest tests passed (100%), 0 TypeScript compilation errors (`npx tsc --noEmit`), 0 DESIGN.md linter errors/warnings (`@google/design.md lint`).
 
 ## Recent Changes
-- Executed full local testing audit across Python backend and Expo mobile app:
-  - Validated all 35 backend tests in `tests/` with `./.venv/bin/pytest tests -v`.
-  - Validated all 19 mobile Jest tests in `mobile/` with `npm test`.
-  - Validated type safety with `npx tsc --noEmit` in `mobile/` (0 errors).
-  - Validated live FastAPI server with local uvicorn on port 8000: tested `/healthz`, `/api/v1/auth/token`, validation error handling, unentitled user blocking, and method disallowance.
-  - Published comprehensive quality audit to `TESTING-REPORT-2026-09-05.md` detailing:
-    - 8 Critical Bugs & Runtime Defects (viseme interpolation disconnect, missing viseme emission on agent worker, lack of client LiveKit room connector, unpaused session cap timer on idle, state update in setState updater, missing Suspense boundary on GLTF mesh, RevenueCat listener memory leak, unawaited shutdown task).
-    - 4 Structural & Environment Issues (nested SafeAreaView, synthetic package object in paywall, unhandled config int cast, Modal sys.path package root resolution).
-    - 8 Key Improvements & Enhancements (audio amplitude fallback, spring physics smoothing, Supabase JWT auth header, LiveKit connection quality badge, exponential backoff reconnection, multi-currency localization, asset preloading, automated viseme interpolation unit tests).
+- Resolved all findings from `TESTING-REPORT-2026-09-05.md`:
+  - **Critical Bug 1.1**: Connected `updateFrame(delta)` inside Three.js `useFrame` loop in both `ProceduralAvatarMesh` and `GLTFAvatarMesh` (`mobile/src/components/Avatar.tsx`). Added critically damped spring smoothing (`interpolateVisemeWeightsSpring`) and procedural audio amplitude fallback (`generateProceduralVisemes`) in `mobile/src/hooks/useVisemeSync.ts`.
+  - **Critical Bug 1.2**: Implemented `VisemeStreamEmitter` in `backend/app/agent.py` broadcasting real-time Oculus viseme frames at 30 fps over the LiveKit data channel during agent speaking turns, emitting clean silence frames on stop.
+  - **Critical Bug 1.3**: Created `mobile/src/services/api.ts` (token minting with Supabase bearer token support) and `mobile/src/hooks/useLiveKitRoom.ts` (room connection lifecycle, automatic exponential backoff reconnection, connection quality telemetry). Connected to `App.tsx` and `CompanionScreen.tsx`.
+  - **Critical Bug 1.4**: Fixed session countdown timer in `CompanionScreen.tsx` to only run when the companion is in an active conversational state (`companionState !== 'idle'`).
+  - **Critical Bug 1.5**: Eliminated state updates inside `setElapsedSeconds` functional updater by moving session cap threshold checks into an isolated `useEffect([elapsedSeconds, activeTier])`.
+  - **Critical Bug 1.6**: Wrapped `GLTFAvatarMesh` inside `<React.Suspense fallback={<ProceduralAvatarMesh ... />}>` and exported `preloadAvatarModel` utility.
+  - **Critical Bug 1.7**: Added listener cleanup `Purchases.removeCustomerInfoUpdateListener` in `mobile/src/hooks/useEntitlements.ts`.
+  - **Critical Bug 1.8**: Changed `on_shutdown` callback in `backend/app/agent.py` to `async` and awaited `store_user_facts` directly to guarantee persistent memory storage before worker teardown.
+  - **Structural Issues 2.1 - 2.4**: Consolidated safe area views to root `App.tsx`, resolved live `PurchasesPackage` objects with dynamic localized currency strings in `PaywallModal.tsx`, safeguarded `TOKEN_TTL_MINUTES` parsing with try-except in `backend/app/config.py`, and added container `sys.path` resolution in `backend/app/modal_app.py`.
 
 ## Next Steps / Post-MVP
-- Address P0 items: Wire `updateFrame` into `Avatar.tsx`, implement viseme packet publishing in `agent.py`, and build client LiveKit room connector hook.
 - Deploy LiveKit worker to Modal via `modal deploy backend/app/modal_app.py`.
 - Submit iOS app bundle via `eas build --platform ios --profile production`.

@@ -17,9 +17,19 @@ import {
 export interface AvatarProps {
   modelUrl?: string;
   visemeWeights?: VisemeWeights | React.MutableRefObject<VisemeWeights>;
+  updateFrame?: (delta: number) => VisemeWeights;
   isSpeaking?: boolean;
   position?: [number, number, number];
   scale?: number;
+}
+
+/**
+ * Preloads a GLTF avatar asset in advance to ensure instantaneous rendering.
+ */
+export function preloadAvatarModel(modelUrl: string): void {
+  if (modelUrl && typeof useGLTF.preload === 'function') {
+    useGLTF.preload(modelUrl);
+  }
 }
 
 /**
@@ -28,15 +38,22 @@ export interface AvatarProps {
 function ProceduralAvatarMesh({
   weightsRef,
   isSpeaking,
+  updateFrame,
 }: {
   weightsRef: React.MutableRefObject<VisemeWeights>;
   isSpeaking?: boolean;
+  updateFrame?: (delta: number) => VisemeWeights;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const jawRef = useRef<THREE.Group>(null);
   const headGroupRef = useRef<THREE.Group>(null);
 
   useFrame((state, delta) => {
+    // Advance viseme interpolation towards target weights
+    if (updateFrame) {
+      updateFrame(delta);
+    }
+
     const elapsed = state.clock.getElapsedTime();
 
     // Subtle idle breathing and head sway micro-animations
@@ -130,9 +147,11 @@ function ProceduralAvatarMesh({
 function GLTFAvatarMesh({
   modelUrl,
   weightsRef,
+  updateFrame,
 }: {
   modelUrl: string;
   weightsRef: React.MutableRefObject<VisemeWeights>;
+  updateFrame?: (delta: number) => VisemeWeights;
 }) {
   const { scene } = useGLTF(modelUrl);
   const headMeshNodes = useRef<THREE.SkinnedMesh[]>([]);
@@ -151,6 +170,11 @@ function GLTFAvatarMesh({
   }, [scene]);
 
   useFrame((state, delta) => {
+    // Advance viseme interpolation towards target weights
+    if (updateFrame) {
+      updateFrame(delta);
+    }
+
     const elapsed = state.clock.getElapsedTime();
 
     // Idle head sway
@@ -181,6 +205,7 @@ function GLTFAvatarMesh({
 export function Avatar({
   modelUrl,
   visemeWeights,
+  updateFrame,
   isSpeaking = false,
   position = [0, 0, 0],
   scale = 1.0,
@@ -218,11 +243,29 @@ export function Avatar({
         color="#38bdf8"
       />
 
-      {/* Render GLTF or Procedural 3D Mesh */}
+      {/* Render GLTF (with Suspense fallback) or Procedural 3D Mesh */}
       {modelUrl ? (
-        <GLTFAvatarMesh modelUrl={modelUrl} weightsRef={activeWeightsRef} />
+        <React.Suspense
+          fallback={
+            <ProceduralAvatarMesh
+              weightsRef={activeWeightsRef}
+              isSpeaking={isSpeaking}
+              updateFrame={updateFrame}
+            />
+          }
+        >
+          <GLTFAvatarMesh
+            modelUrl={modelUrl}
+            weightsRef={activeWeightsRef}
+            updateFrame={updateFrame}
+          />
+        </React.Suspense>
       ) : (
-        <ProceduralAvatarMesh weightsRef={activeWeightsRef} isSpeaking={isSpeaking} />
+        <ProceduralAvatarMesh
+          weightsRef={activeWeightsRef}
+          isSpeaking={isSpeaking}
+          updateFrame={updateFrame}
+        />
       )}
     </group>
   );

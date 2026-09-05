@@ -161,4 +161,51 @@ describe('Viseme Weight Interpolation & Damping', () => {
     const next = interpolateVisemeWeights(current, target, largeDelta, 50.0);
     expect(next.viseme_PP).toBe(1.0);
   });
+
+  test('spring damping smoothly interpolates weights without overshooting', () => {
+    const { interpolateVisemeWeightsSpring } = require('../src/hooks/useVisemeSync');
+    const current = createDefaultVisemeWeights();
+    const target = { viseme_AA: 0.9, viseme_sil: 0.0 };
+
+    let weights = current;
+    // Step forward 10 frames of 16ms
+    for (let i = 0; i < 10; i++) {
+      weights = interpolateVisemeWeightsSpring(weights, target, 0.016, 0.04);
+      expect(weights.viseme_AA).toBeGreaterThanOrEqual(0.0);
+      expect(weights.viseme_AA).toBeLessThanOrEqual(0.9);
+    }
+    // Viseme AA should have converged significantly
+    expect(weights.viseme_AA).toBeGreaterThan(0.6);
+    expect(weights.viseme_sil).toBeLessThan(0.4);
+  });
 });
+
+describe('Procedural Audio Amplitude Viseme Fallback', () => {
+  test('returns neutral silence for zero or very low amplitude', () => {
+    const { generateProceduralVisemes } = require('../src/hooks/useVisemeSync');
+    const silent = generateProceduralVisemes(0.0);
+    expect(silent.viseme_sil).toBe(1.0);
+    expect(silent.viseme_AA).toBe(0.0);
+
+    const low = generateProceduralVisemes(0.03);
+    expect(low.viseme_sil).toBe(1.0);
+    expect(low.viseme_AA).toBe(0.0);
+  });
+
+  test('maps active speech amplitude into organic mouth open blendshapes', () => {
+    const { generateProceduralVisemes } = require('../src/hooks/useVisemeSync');
+    const midSpeech = generateProceduralVisemes(0.7);
+    expect(midSpeech.viseme_AA).toBeGreaterThan(0.4);
+    expect(midSpeech.viseme_O).toBeGreaterThan(0.2);
+    expect(midSpeech.viseme_sil).toBeLessThan(0.5);
+  });
+});
+
+describe('Avatar Asset Preloader', () => {
+  test('preloadAvatarModel handles valid and empty URLs without throwing', () => {
+    const { preloadAvatarModel } = require('../src/components/Avatar');
+    expect(() => preloadAvatarModel('')).not.toThrow();
+    expect(() => preloadAvatarModel('https://models.readyplayer.me/test.glb')).not.toThrow();
+  });
+});
+

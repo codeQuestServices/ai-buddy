@@ -83,6 +83,11 @@ def run_livekit_worker() -> None:
     else:
         print("[INFO] All 8 required environment keys loaded from ai-buddy-secrets successfully.")
 
+    # Ensure container root and current directory are on sys.path
+    for path in ["/root", os.getcwd()]:
+        if path not in sys.path:
+            sys.path.insert(0, path)
+
     print("[INFO] Starting LiveKit Voice Agent Worker on Modal container...")
     try:
         from backend.app.agent import run_agent_worker

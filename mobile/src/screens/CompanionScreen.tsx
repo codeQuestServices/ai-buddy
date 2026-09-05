@@ -8,8 +8,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
   Dimensions,
 } from 'react-native';
 import { Canvas } from '@react-three/fiber';
@@ -45,30 +43,25 @@ export function CompanionScreen({
   const {
     activeTier,
     isSubscribed,
+    offerings,
     purchasePackage,
     restorePurchases,
     loading: purchasesLoading,
   } = useEntitlements();
 
   // Synchronize LiveKit viseme frames
-  const { currentWeightsRef, activeViseme } = useVisemeSync(room);
+  const { currentWeightsRef, activeViseme, updateFrame } = useVisemeSync(room);
 
-  // 1-second Session Duration Countdown Timer
+  // 1-second Session Duration Countdown Timer - only active during conversation
   useEffect(() => {
-    const timer = setInterval(() => {
-      setElapsedSeconds((prev) => {
-        const next = prev + 1;
+    if (companionState === 'idle') return;
 
-        // Check if session cap is exceeded for current tier
-        if (shouldTriggerSessionCap(next, activeTier)) {
-          handleSessionCapReached();
-        }
-        return next;
-      });
+    const timer = setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [activeTier]);
+  }, [companionState]);
 
   // Handle Room Disconnect on Session Limit Expiry
   const handleSessionCapReached = () => {
@@ -82,6 +75,13 @@ export function CompanionScreen({
     }
     setIsPaywallVisible(true);
   };
+
+  // Dedicated threshold effect to avoid state updates inside setState functional updaters
+  useEffect(() => {
+    if (shouldTriggerSessionCap(elapsedSeconds, activeTier)) {
+      handleSessionCapReached();
+    }
+  }, [elapsedSeconds, activeTier]);
 
   // Listen for backend room disconnects
   useEffect(() => {
@@ -148,9 +148,7 @@ export function CompanionScreen({
   const statusBadge = getStatusBadgeConfig();
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
-
+    <View style={styles.container}>
       {/* Header Bar */}
       <View style={styles.header}>
         <View>
@@ -204,6 +202,7 @@ export function CompanionScreen({
         >
           <Avatar
             visemeWeights={currentWeightsRef}
+            updateFrame={updateFrame}
             isSpeaking={companionState === 'speaking'}
           />
         </Canvas>
@@ -265,9 +264,10 @@ export function CompanionScreen({
         onClose={() => setIsPaywallVisible(false)}
         onPurchase={purchasePackage}
         onRestore={restorePurchases}
+        offerings={offerings}
         isLoading={purchasesLoading}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

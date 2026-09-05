@@ -1,7 +1,9 @@
 """LiveKit Voice Agent Core for AI Buddy with RAG & Persistent Memory."""
 
 import asyncio
+import json
 import logging
+import math
 import os
 import time
 from typing import Any, Callable, Dict, List, Optional
@@ -37,6 +39,84 @@ Key personality traits:
 - Maintain a friendly, supportive, and cheerful tone at all times.
 - Keep responses brief and interactive (1-3 sentences per turn) so natural back-and-forth dialogue flows effortlessly.
 """
+
+
+class VisemeStreamEmitter:
+    """Computes and broadcasts real-time Oculus viseme frames over the LiveKit data channel."""
+
+    def __init__(self, fps: float = 30.0) -> None:
+        self.fps = fps
+        self.interval = 1.0 / max(1.0, fps)
+        self._task: Optional[asyncio.Task] = None
+        self._is_active: bool = False
+        self._room: Any = None
+
+    def start(self, room: Any) -> None:
+        """Start broadcasting visemes for the active speaking turn."""
+        if self._is_active:
+            return
+        self._room = room
+        self._is_active = True
+        self._task = asyncio.create_task(self._emit_loop())
+
+    def stop(self) -> None:
+        """Stop broadcasting and emit silence frame."""
+        self._is_active = False
+        if self._task and not self._task.done():
+            self._task.cancel()
+        if self._room:
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self._publish_silence(self._room))
+            except RuntimeError:
+                pass
+
+    async def _publish_silence(self, room: Any) -> None:
+        try:
+            silence_payload = json.dumps({"visemes": {"viseme_sil": 1.0}}).encode("utf-8")
+            if hasattr(room, "local_participant") and hasattr(room.local_participant, "publish_data"):
+                res = room.local_participant.publish_data(silence_payload, reliable=False)
+                if asyncio.iscoroutine(res):
+                    await res
+        except Exception as e:
+            logger.debug("Failed to publish silence viseme: %s", e)
+
+    async def _emit_loop(self) -> None:
+        t = 0.0
+        try:
+            while self._is_active and self._room:
+                # Generate organic phoneme cadence cycling
+                aa = max(0.0, math.sin(t * 7.0) * 0.8 + 0.1)
+                o = max(0.0, math.cos(t * 5.0) * 0.5)
+                e = max(0.0, math.sin(t * 9.0 + 1.0) * 0.4)
+                pp = 0.4 if (int(t * 4.0) % 5 == 0) else 0.0
+
+                frame = {
+                    "visemes": {
+                        "viseme_AA": round(aa, 3),
+                        "viseme_O": round(o, 3),
+                        "viseme_E": round(e, 3),
+                        "viseme_PP": round(pp, 3),
+                        "viseme_sil": round(max(0.0, 1.0 - (aa + o + e)), 3),
+                    }
+                }
+                payload = json.dumps(frame).encode("utf-8")
+
+                if hasattr(self._room, "local_participant") and hasattr(self._room.local_participant, "publish_data"):
+                    res = self._room.local_participant.publish_data(payload, reliable=False)
+                    if asyncio.iscoroutine(res):
+                        await res
+
+                t += self.interval
+                await asyncio.sleep(self.interval)
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            logger.warning("Viseme emitter loop encountered error: %s", e)
+
+    @property
+    def is_active(self) -> bool:
+        return self._is_active
 
 
 class SessionCircuitBreaker:
@@ -219,12 +299,21 @@ async def entrypoint(ctx: JobContext) -> None:
     agent = create_voice_agent(instructions=dynamic_instructions)
     session = create_agent_session()
 
+    # Initialize real-time Oculus viseme emitter for 3D avatar lip synchronization
+    viseme_emitter = VisemeStreamEmitter(fps=30.0)
+
     # Register lifecycle event hooks
     lifecycle_handlers = VoiceLifecycleHandlers(
         on_user_started_speaking=lambda: logger.info("User started speaking"),
         on_user_stopped_speaking=lambda: logger.info("User stopped speaking"),
-        on_agent_started_speaking=lambda: logger.info("Agent started speaking"),
-        on_agent_stopped_speaking=lambda: logger.info("Agent stopped speaking"),
+        on_agent_started_speaking=lambda: (
+            logger.info("Agent started speaking"),
+            viseme_emitter.start(ctx.room),
+        ),
+        on_agent_stopped_speaking=lambda: (
+            logger.info("Agent stopped speaking"),
+            viseme_emitter.stop(),
+        ),
     )
     lifecycle_handlers.register_session_listeners(session)
 
@@ -235,11 +324,15 @@ async def entrypoint(ctx: JobContext) -> None:
     )
     circuit_breaker.start()
 
-    # On room disconnect / shutdown, store extracted user facts to vector memory in background
-    def on_shutdown() -> None:
+    # On room disconnect / shutdown, store extracted user facts to vector memory
+    async def on_shutdown() -> None:
         circuit_breaker.cancel()
+        viseme_emitter.stop()
         if lifecycle_handlers.transcript:
-            asyncio.create_task(store_user_facts(user_id, list(lifecycle_handlers.transcript)))
+            try:
+                await store_user_facts(user_id, list(lifecycle_handlers.transcript))
+            except Exception as e:
+                logger.warning("Error persisting user facts on shutdown: %s", e)
 
     ctx.add_shutdown_callback(on_shutdown)
 
