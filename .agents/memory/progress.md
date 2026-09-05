@@ -48,6 +48,12 @@
   - [x] Debian Slim container with ffmpeg, libopus-dev, and python dependencies
   - [x] Secret binding to `ai-buddy-secrets` for all 8 backend environment variables
   - [x] Warm container persistence (`min_containers=1`) and 24-hour timeout (`timeout=86400`)
+- [x] Design System & Mobile App Hardening
+  - [x] Stitch-compatible design system specification (`DESIGN.md`) with 25 colors, 13 typography levels, and 34 component token mappings
+  - [x] Zero-error lint validation with `@google/design.md lint`
+  - [x] Mobile `App.tsx` root container rendering `<CompanionScreen />`
+  - [x] Bundle identifier and native asset plugin configuration in `app.json`
+  - [x] Expo JSI runtime patch (`mobile/patches/expo-modules-jsi+57.0.6.patch`) and `patch-package` postinstall
 
 ## Pending Work
 - None (All core development and serverless deployment phases completed and verified).

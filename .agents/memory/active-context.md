@@ -1,20 +1,23 @@
 # Active Context
 
 ## Current Status
-- **Phase**: Modal Deployment & Infrastructure Complete & Verified ([APPROVED])
-- **Overall Project Status**: **AI Buddy MVP Architecture 100% Complete & Production-Ready**.
-- **Test Suite Status**: 35 Backend Pytest tests passed (100%), 19 Mobile Jest tests passed (100%), 0 TypeScript compilation errors (`npx tsc --noEmit`).
+- **Phase**: Design System Specification (DESIGN.md) & Mobile Build Hardening ([APPROVED])
+- **Overall Project Status**: **AI Buddy MVP Architecture & Design System 100% Complete & Production-Ready**.
+- **Test Suite Status**: 35 Backend Pytest tests passed (100%), 19 Mobile Jest tests passed (100%), 0 TypeScript compilation errors (`npx tsc --noEmit`), 0 DESIGN.md linter errors/warnings (`@google/design.md lint`).
 
 ## Recent Changes
+- Created root `DESIGN.md` conforming to Google Stitch design-md specification (`https://stitch.withgoogle.com/docs/design-md/overview`):
+  - Defined YAML frontmatter token groups: 25 colors, 13 typography scales, 9 rounding levels, 9 spacing dimensions, and 34 component token mappings.
+  - Authored all 8 standard sections: Overview (Brand & Style), Colors, Typography, Layout, Elevation & Depth, Shapes, Components, and Do's and Don'ts.
+  - Validated via `npx -y @google/design.md lint DESIGN.md` with 0 errors and 0 warnings.
+- Mobile Native Build Hardening:
+  - Configured `App.tsx` to render `<CompanionScreen />` with dark background (`#0a0d14`) and light status bar.
+  - Added bundle identifier `com.codequestservices.mobile`, EAS project configuration, and `expo-asset` plugin to `app.json`.
+  - Added `expo-gl` and `patch-package` with `expo-modules-jsi+57.0.6.patch` to guarantee C++ runtime scheduler compatibility for native iOS builds.
 - Implemented Modal serverless deployment script at `backend/app/modal_app.py`:
   - Defined `modal.App("ai-buddy-agent")`.
-  - Built Debian Slim Python 3.11 container with system binaries (`ffmpeg`, `libopus-dev`, `git`) and Python dependencies from `requirements.txt`.
-  - Configured `@app.function` attaching `modal.Secret.from_name("ai-buddy-secrets")` exposing all 8 backend environment variables (`LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `REVENUECAT_SECRET_KEY`, `MEM0_API_KEY`).
-  - Configured `min_containers=1` (guarantees at least 1 warm worker container continuously listening for WebSocket room dispatches) and `timeout=86400` (24-hour execution limit).
-  - Configured continuous worker execution loop invoking `backend.app.agent.run_agent_worker()`.
-- Added unit test `test_modal_app_configuration` in `tests/test_agent.py` to validate app naming and secret key bindings.
-- Verified syntax compilation with `python -m py_compile backend/app/modal_app.py`.
-- Updated `cloud-architecture.md` and `progress.md` with Modal hosting topology.
+  - Debian slim image with system binaries and Python dependencies.
+  - Secret binding `ai-buddy-secrets` with continuous worker execution.
 
 ## Next Steps / Post-MVP
 - Deploy LiveKit worker to Modal via `modal deploy backend/app/modal_app.py`.
