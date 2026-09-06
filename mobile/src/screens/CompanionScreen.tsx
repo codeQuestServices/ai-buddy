@@ -10,9 +10,9 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import { Canvas } from '@react-three/fiber';
+import { Canvas } from '@react-three/fiber/native';
 import { Avatar } from '../components/Avatar';
-import { useVisemeSync } from '../hooks/useVisemeSync';
+import { useVisemeSync, OculusVisemeKey } from '../hooks/useVisemeSync';
 import {
   useEntitlements,
   calculateRemainingSessionSeconds,
@@ -50,7 +50,42 @@ export function CompanionScreen({
   } = useEntitlements();
 
   // Synchronize LiveKit viseme frames
-  const { currentWeightsRef, activeViseme, updateFrame } = useVisemeSync(room);
+  const { currentWeightsRef, activeViseme, updateFrame, setTargetWeights } = useVisemeSync(room);
+
+  // Active speech viseme simulation loop for test / state toggle mode
+  useEffect(() => {
+    if (companionState !== 'speaking') {
+      setTargetWeights({ viseme_sil: 1.0 });
+      return;
+    }
+
+    let step = 0;
+    const phonemes: OculusVisemeKey[] = [
+      'viseme_AA',
+      'viseme_O',
+      'viseme_E',
+      'viseme_PP',
+      'viseme_AA',
+      'viseme_I',
+      'viseme_FF',
+      'viseme_TH',
+    ];
+
+    const interval = setInterval(() => {
+      const p = phonemes[step % phonemes.length];
+      const weight = 0.55 + Math.sin(step * 0.8) * 0.35;
+      setTargetWeights({
+        [p]: weight,
+        viseme_sil: Math.max(0, 1.0 - weight),
+      });
+      step++;
+    }, 120);
+
+    return () => {
+      clearInterval(interval);
+      setTargetWeights({ viseme_sil: 1.0 });
+    };
+  }, [companionState, setTargetWeights]);
 
   // 1-second Session Duration Countdown Timer - only active during conversation
   useEffect(() => {
@@ -358,17 +393,18 @@ const styles = StyleSheet.create({
   },
   canvasContainer: {
     flex: 1,
+    width: '100%',
     position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   canvas: {
+    flex: 1,
     width: '100%',
     height: '100%',
   },
   visemeOverlay: {
     position: 'absolute',
     bottom: 16,
+    alignSelf: 'center',
     backgroundColor: 'rgba(15, 23, 42, 0.75)',
     paddingHorizontal: 14,
     paddingVertical: 6,

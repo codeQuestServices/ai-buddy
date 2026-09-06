@@ -16,6 +16,12 @@
   - **Critical Bug 1.7**: Added listener cleanup `Purchases.removeCustomerInfoUpdateListener` in `mobile/src/hooks/useEntitlements.ts`.
   - **Critical Bug 1.8**: Changed `on_shutdown` callback in `backend/app/agent.py` to `async` and awaited `store_user_facts` directly to guarantee persistent memory storage before worker teardown.
   - **Structural Issues 2.1 - 2.4**: Consolidated safe area views to root `App.tsx`, resolved live `PurchasesPackage` objects with dynamic localized currency strings in `PaywallModal.tsx`, safeguarded `TOKEN_TTL_MINUTES` parsing with try-except in `backend/app/config.py`, and added container `sys.path` resolution in `backend/app/modal_app.py`.
+- Verified live functionality on iOS simulator (`npm run ios`):
+  - Fixed R3F Canvas native entrypoint: Switched import in `CompanionScreen.tsx` from web `@react-three/fiber` to `@react-three/fiber/native` (which wraps `expo-gl`'s `GLView`).
+  - Corrected Yoga Flexbox sizing: Ensured `canvasContainer` and `canvas` allocate full width/height to provide valid dimensions to `onLayout` (`width: 402, height: 529.33`).
+  - Sanitized RevenueCat API key validation in `useEntitlements.ts` to ignore secret `sk_...` keys on the client and avoid native SDK crash alerts.
+  - Added real-time phoneme cycling simulation loop when toggling "Speaking" in `CompanionScreen.tsx` and dynamically updating `activeViseme`.
+  - Updated Jest configuration regex mapping for `@react-three/drei` and `@react-three/fiber` to ensure seamless mock resolution.
 
 ## Next Steps / Post-MVP
 - Deploy LiveKit worker to Modal via `modal deploy backend/app/modal_app.py`.

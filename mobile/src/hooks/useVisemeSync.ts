@@ -287,6 +287,15 @@ export function useVisemeSync(room?: any, options?: UseVisemeSyncOptions) {
 
   const setTargetWeights = useCallback((weights: Partial<Record<OculusVisemeKey, number>>) => {
     targetWeightsRef.current = weights;
+    let maxKey: OculusVisemeKey = 'viseme_sil';
+    let maxVal = 0.0;
+    for (const [k, v] of Object.entries(weights)) {
+      if (typeof v === 'number' && v > maxVal) {
+        maxVal = v;
+        maxKey = k as OculusVisemeKey;
+      }
+    }
+    setActiveViseme(maxVal > 0.1 ? maxKey : 'viseme_sil');
   }, []);
 
   return {

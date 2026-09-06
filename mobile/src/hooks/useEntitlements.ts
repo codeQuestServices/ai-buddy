@@ -91,7 +91,9 @@ export function useEntitlements() {
 
   // Initialize RevenueCat SDK
   useEffect(() => {
-    const apiKey = process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY || 'appl_mock_revenuecat_key';
+    const rawKey = process.env.EXPO_PUBLIC_REVENUECAT_APPLE_KEY;
+    // Client SDK only accepts public Apple keys starting with 'appl_'. Secret keys ('sk_...') are strictly backend-only.
+    const apiKey = rawKey && rawKey.startsWith('appl_') ? rawKey : null;
 
     const initRevenueCat = async () => {
       try {
@@ -105,6 +107,9 @@ export function useEntitlements() {
           if (currentOfferings.current) {
             setOfferings(currentOfferings.current);
           }
+        } else {
+          // In local simulation/dev mode without live appl_ key, default to free tier
+          setActiveTier('free');
         }
       } catch (err: any) {
         setError(err?.message || 'Failed to initialize purchases');
